@@ -53,6 +53,7 @@ class VOCBrain():
                         self.not_biases.append(param)
             self.optimizer = torch.optim.SGD(params=[{'params': self.biases, 'lr': 2 * self.lr}, {'params': self.not_biases}],
                                     lr=self.lr, momentum=self.momentum, weight_decay=self.weight_decay)
+        self.model = self.model.to(device)
         self.criterion = MultiBoxLoss(priors_cxcy=self.model.priors_cxcy).to(device)
 
 
