@@ -99,9 +99,6 @@ class VOCBrain():
                                                                     batch_time=batch_time,
                                                                     data_time=data_time, loss=losses))
 
-                if i==2:
-                    break
-
             self.__save_checkpoint(epoch, self.model, self.optimizer)
 
     def eval(self, image_path):
