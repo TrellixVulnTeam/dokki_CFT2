@@ -19,4 +19,4 @@ JAR_PATH="/home/gugaime/Documentos/Datasets/VOCtrainval_06-Nov-2007.tar"
 if __name__ == "__main__":
     brain = brains.VOCBrain(JAR_PATH)
     brain.load()
-    brain.train(1)
+    brain.train()

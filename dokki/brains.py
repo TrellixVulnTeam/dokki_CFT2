@@ -37,11 +37,16 @@ class VOCBrain():
         self.decay_lr_to = 0.1  # decay learning rate to this fraction of the existing learning rate
         self.momentum = 0.9  # momentum
         self.weight_decay = 5e-4
+        self.start_epoch = 0
+        self.epochs = 20
 
     def load(self):
         self.dataset = load_dataset_from_pascal_voc_jar(self.jar_path, "TRAIN")
         self.loader = self.__loader_from_dataset(self.dataset, self.batch_size, self.workers)
         if self.chekpoint_tar_path:
+            checkpoint = torch.load(self.chekpoint_tar_path)
+            self.start_epoch = checkpoint['epoch'] + 1
+            print('\nLoaded checkpoint from epoch %d.\n' % self.start_epoch)
             self.model = self.__load_model_from_checkpoint(self.chekpoint_tar_path)
         else:
             self.model = SSD300(n_classes=self.n_classes)
@@ -61,40 +66,41 @@ class VOCBrain():
         image,  _, _, _, _= self.dataset[i]
         return image
 
-    def train(self, epoch):
-        if epoch in self.decay_lr_at:
-            self.__adjust_learning_rate(self.decay_lr_to)
-        self.model.train()
-        batch_time = AverageMeter()  # forward prop. + back prop. time
-        data_time = AverageMeter()  # data loading time
-        losses = AverageMeter()
-        start = time.time()
-
-        for i, (image, timages, tboxes, tlabels, _) in enumerate(self.loader):
-
-            data_time.update(time.time() - start)
-
-            timages = timages.to(device)  # (batch_size (N), 3, 300, 300)
-            tboxes = [b.to(device) for b in tboxes]
-            tlabels = [l.to(device) for l in tlabels]
-
-            predicted_locs, predicted_scores = self.model(timages)
-            loss = self.criterion(predicted_locs, predicted_scores, tboxes, tlabels)
-            self.optimizer.zero_grad()
-            loss.backward()
-            self.optimizer.step()
-            losses.update(loss.item(), timages.size(0))
-            batch_time.update(time.time() - start)
+    def train(self):
+        for epoch in range(self.start_epoch, self.epochs):
+            if epoch in self.decay_lr_at:
+                self.__adjust_learning_rate(self.decay_lr_to)
+            self.model.train()
+            batch_time = AverageMeter()  # forward prop. + back prop. time
+            data_time = AverageMeter()  # data loading time
+            losses = AverageMeter()
             start = time.time()
 
-            if i % VOCBrain.PRINT_FREQ==0:
-                print('Epoch: [{0}][{1}/{2}]\t'
-                  'Batch Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
-                  'Data Time {data_time.val:.3f} ({data_time.avg:.3f})\t'
-                  'Loss {loss.val:.4f} ({loss.avg:.4f})\t'.format(epoch, i, len(self.loader),
-                                                                  batch_time=batch_time,
-                                                                  data_time=data_time, loss=losses))
+            for i, (image, timages, tboxes, tlabels, _) in enumerate(self.loader):
 
+                data_time.update(time.time() - start)
+
+                timages = timages.to(device)  # (batch_size (N), 3, 300, 300)
+                tboxes = [b.to(device) for b in tboxes]
+                tlabels = [l.to(device) for l in tlabels]
+
+                predicted_locs, predicted_scores = self.model(timages)
+                loss = self.criterion(predicted_locs, predicted_scores, tboxes, tlabels)
+                self.optimizer.zero_grad()
+                loss.backward()
+                self.optimizer.step()
+                losses.update(loss.item(), timages.size(0))
+                batch_time.update(time.time() - start)
+                start = time.time()
+
+                if i % VOCBrain.PRINT_FREQ==0:
+                    print('Epoch: [{0}][{1}/{2}]\t'
+                    'Batch Time {batch_time.val:.3f} ({batch_time.avg:.3f})\t'
+                    'Data Time {data_time.val:.3f} ({data_time.avg:.3f})\t'
+                    'Loss {loss.val:.4f} ({loss.avg:.4f})\t'.format(epoch, i, len(self.loader),
+                                                                    batch_time=batch_time,
+                                                                    data_time=data_time, loss=losses))
+            self.__save_checkpoint(epoch, self.model, self.optimizer)
 
     def eval(self, image_path):
         with torch.no_grad():
@@ -106,6 +112,13 @@ class VOCBrain():
                                                                                     min_score=0.2, max_overlap=0.45,
                                                                                     top_k=200)
             return image, boxes_batch[0], labels_batch[0], scores_batch[0]
+
+    def __save_checkpoint(self, epoch, model, optimizer):
+        state = {'epoch': epoch,
+             'model': model,
+             'optimizer': optimizer}
+        filename = 'checkpoint_ssd300.pth.tar'
+        torch.save(state, filename)
 
     def __adjust_learning_rate(self, scale):
         for param_group in self.optimizer.param_groups:
