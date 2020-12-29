@@ -44,10 +44,8 @@ class VOCBrain():
         self.dataset = load_dataset_from_pascal_voc_jar(self.jar_path, "TRAIN")
         self.loader = self.__loader_from_dataset(self.dataset, self.batch_size, self.workers)
         if self.chekpoint_tar_path:
-            checkpoint = torch.load(self.chekpoint_tar_path)
-            self.start_epoch = checkpoint['epoch'] + 1
+            self.start_epoch, self.model, self.optimizer  = self.__load_checkpoint(self.chekpoint_tar_path)
             print('\nLoaded checkpoint from epoch %d.\n' % self.start_epoch)
-            self.model = self.__load_model_from_checkpoint(self.chekpoint_tar_path)
         else:
             self.model = SSD300(n_classes=self.n_classes)
             for param_name, param in self.model.named_parameters():
@@ -100,6 +98,10 @@ class VOCBrain():
                     'Loss {loss.val:.4f} ({loss.avg:.4f})\t'.format(epoch, i, len(self.loader),
                                                                     batch_time=batch_time,
                                                                     data_time=data_time, loss=losses))
+
+                if i==2:
+                    break
+
             self.__save_checkpoint(epoch, self.model, self.optimizer)
 
     def eval(self, image_path):
@@ -125,10 +127,10 @@ class VOCBrain():
             param_group['lr'] = param_group['lr'] * scale
         print("DECAYING learning rate.\n The new LR is %f\n" % (self.optimizer.param_groups[1]['lr'],))
 
-    def __load_model_from_checkpoint(self, checkpoint:str) -> nn.Module:
+    def __load_checkpoint(self, checkpoint:str) -> nn.Module:
         sys.path.insert(0, './dokki')
         checkpoint = torch.load(checkpoint,  map_location=torch.device(device))
-        return checkpoint['model']
+        return checkpoint['epoch'] + 1,checkpoint['model'],checkpoint['optimizer']
 
     def __loader_from_dataset(self, dataset: VOCDataset, batch: int, workers: int):
         return torch.utils.data.DataLoader(dataset, batch_size=batch, shuffle=False, collate_fn=dataset.collate_fn, num_workers=workers, pin_memory=True)
