@@ -6,8 +6,14 @@ from PIL import Image
 import logging
 from typing import Tuple
 from transformes import VOCTransform
-from databuilders import VOCJsonBuilder
+from databuilders import VOCJsonBuilder, DokkiBuilder
 
+def load_dataset_from_dokki_jar(path, split):
+    output_tmp=os.environ["DATASET_TMP"]
+    #descriptor = DokkiBuilder('/tmp/notafiscalpaulista.tar.xz',"/tmp/notafiscalpaulista")
+    DokkiBuilder(path,output_tmp).build()
+    json_path = output_tmp
+    return VOCDataset(json_path, split)
 
 def load_dataset_from_pascal_voc_jar(path,split):
     output_tmp=os.environ["DATASET_TMP"]
@@ -77,7 +83,8 @@ class VOCDataset(Dataset):
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.DEBUG)
-    load_dataset_from_pascal_voc_jar('/home/gugaime/Documentos/Datasets/VOCtrainval_06-Nov-2007.tar', 2007)
+    #load_dataset_from_pascal_voc_jar('/home/gugaime/Documentos/Datasets/VOCtrainval_06-Nov-2007.tar', 2007)
+    load_dataset_from_dokki_jar('/tmp/notafiscalpaulista.tar.xz', 'TRAIN')
     # dataset = VOCDataset("/tmp/VOC", "TRAIN")
     # image,timage, boxes, labels, difficulties = dataset[0]
     # logging.info("-Image:%s",timage.shape)

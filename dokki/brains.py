@@ -38,7 +38,7 @@ class VOCBrain():
         self.momentum = 0.9  # momentum
         self.weight_decay = 5e-4
         self.start_epoch = 0
-        self.epochs = 20
+        self.epochs = 100
 
     def load(self):
         self.dataset = load_dataset_from_pascal_voc_jar(self.jar_path, "TRAIN")
@@ -104,6 +104,16 @@ class VOCBrain():
     def eval(self, image_path):
         with torch.no_grad():
             image = Image.open(image_path)
+            t_image, _ = self.dataset.transform_image(image)
+            mini_batch_image = t_image.unsqueeze(0)
+            predicted_locs, predicted_scores = self.model(mini_batch_image)
+            boxes_batch, labels_batch, scores_batch = self.model.detect_objects(predicted_locs, predicted_scores,
+                                                                                    min_score=0.2, max_overlap=0.45,
+                                                                                    top_k=200)
+            return image, boxes_batch[0], labels_batch[0], scores_batch[0]
+
+    def eval_image(self, image):
+        with torch.no_grad():
             t_image, _ = self.dataset.transform_image(image)
             mini_batch_image = t_image.unsqueeze(0)
             predicted_locs, predicted_scores = self.model(mini_batch_image)

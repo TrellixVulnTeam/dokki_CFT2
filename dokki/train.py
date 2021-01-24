@@ -17,6 +17,6 @@ logging.basicConfig(level=logging.INFO)
 JAR_PATH="/home/gugaime/Documentos/Datasets/VOCtrainval_06-Nov-2007.tar"
 
 if __name__ == "__main__":
-    brain = brains.VOCBrain(JAR_PATH)
+    brain = brains.VOCBrain(JAR_PATH, "/home/gugaime/checkpoint_ssd300.pth.tar")
     brain.load()
     brain.train()
