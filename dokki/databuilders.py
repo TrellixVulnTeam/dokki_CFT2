@@ -3,15 +3,66 @@ import os
 import xml.etree.ElementTree as ET
 import logging
 import json
-from utils import extract_tar
+from path import extract_tar,extract_zip
 
+class ICDARBuilder():
+
+    def __init__(self, dataset_tar:str, directory_to_extract_to:str, task:int):
+        extract_zip(dataset_tar, directory_to_extract_to)
+        self.root = directory_to_extract_to        
+        self.task=task
+        self.__config_labels()
+    
+    def __config_labels(self):
+        self.label_map={}
+        self.label_map['background'] = 0
+        self.label_map['text'] = 1
+
+    def build(self):
+        img_path = os.path.join(self.root,"task"+str(self.task))
+        train_images_id, train_images_path= load_images_id_and_path(img_path)
+        parser = lambda f: self.parse_bbox_file(f)
+        train_objects = load_bboxes_and_labels(train_images_id, parser)
+        #self.__save_images_and_objets_description_json(train_images_path, train_objects)
+
+    def parse_bbox_file(self,filename):
+        img_path = os.path.join(self.root,"task"+str(self.task),filename)
+        txt_path = img_path.replace(".jpg",".txt")
+        if not os.path.exists(txt_path):
+            print("File not found",txt_path)
+            return
+        print("Reading....",txt_path)
+        lines = open( txt_path).readlines()
+        
+        boxes=list()
+        labels=list()
+        difficulties=list()
+        for l in lines:
+            fields = l.split(",")
+            if(len(fields)<9):
+                logging.warn("Line %s dont have 9 fields as expected",l)
+                continue            
+            bbox = {}
+            bbox["x1"]=fields[0]
+            bbox["y1"]=fields[1]
+            bbox["x2"]=fields[2]
+            bbox["y2"]=fields[3]
+            bbox["x3"]=fields[4]
+            bbox["y3"]=fields[5]
+            bbox["x4"]=fields[6]
+            bbox["y4"]=fields[7]
+            boxes.append(bbox)
+            labels.append("text")
+            difficulties.append(0)
+
+        return {'boxes': boxes, 'labels': labels, 'difficulties': difficulties}
 
 class DokkiBuilder():
     ROOT_DIR_NAME = "output"
 
     def __init__(self, dataset_tar:str, output_dir:str):
-        self.source_jar_dir = os.path.dirname(dataset_tar)
-        self.extracted_jar_dir = output_dir
+        self.directory_of_dataset_tar = os.path.dirname(dataset_tar)
+        self.directory_to_extract_jar = output_dir
         self.dataset_dir = os.path.join(output_dir, DokkiBuilder.ROOT_DIR_NAME)
         if not self.__tar_already_extracted():
             logging.info("Dataset %s not extracted yet. Extracting at %s",self.dataset_dir, output_dir)
@@ -33,7 +84,7 @@ class DokkiBuilder():
 
 
     def __load_images_ids(self):
-        imgs_dir = os.path.join(self.extracted_jar_dir, DokkiBuilder.ROOT_DIR_NAME)
+        imgs_dir = os.path.join(self.directory_to_extract_jar, DokkiBuilder.ROOT_DIR_NAME)
         all_files = os.listdir(imgs_dir)
         logging.info("Total of %d images id loaded.",len(all_files))
         return all_files
@@ -57,7 +108,7 @@ class DokkiBuilder():
         return train_images, train_objects
 
     def __save_images_and_objets_description_json(self, train_images, train_objects):
-        json_files =  [ os.path.join(self.extracted_jar_dir,f) for f in ['TRAIN_images.json', 'TRAIN_objects.json', 'label_map.json']]
+        json_files =  [ os.path.join(self.directory_to_extract_jar,f) for f in ['TRAIN_images.json', 'TRAIN_objects.json', 'label_map.json']]
         json_lists = [train_images, train_objects, self.label_map]
         self.__clean_up_json_files(json_files)
         for i, file in enumerate(json_files):
@@ -195,8 +246,27 @@ class VOCJsonBuilder():
 
         return {'boxes': boxes, 'labels': labels, 'difficulties': difficulties}
 
+
+def load_images_id_and_path(directory_of_images):
+        all_file_ids = os.listdir(directory_of_images)
+        all_file_paths = [ os.path.join(directory_of_images,f) for f in all_file_ids]
+        logging.info("Total of %d images id loaded.",len(all_file_ids))
+        return all_file_ids, all_file_paths
+
+def load_bboxes_and_labels(images_ids, parser):
+        train_objects = list()
+        n_objects = 0
+        for image_id in images_ids:
+            objects = parser(image_id)
+            n_objects += len(objects)
+            train_objects.append(objects)
+        assert len(train_objects) == len(images_ids)
+        logging.info('There are %d training images containing a total of %d objects.',len(train_images), n_objects)
+        return train_images, train_objects
+
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
     #descriptor = VOCJsonBuilder('/home/gugaime/Documentos/Datasets/VOCtrainval_06-Nov-2007.tar',"/tmp/VOC")
-    descriptor = DokkiBuilder('/tmp/notafiscalpaulista.tar.xz',"/tmp/notafiscalpaulista")
+    #descriptor = DokkiBuilder('/tmp/notafiscalpaulista.tar.xz',"/tmp/notafiscalpaulista")
+    descriptor = ICDARBuilder('/home/gugaime/DataSets/ICDAR/icdar.task1train.zip',"/tmp/icdar",1)
     descriptor.build()
