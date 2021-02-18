@@ -6,7 +6,13 @@ from PIL import Image
 import logging
 from typing import Tuple
 from transformes import VOCTransform
-from databuilders import VOCJsonBuilder, DokkiBuilder
+from databuilders import VOCJsonBuilder, DokkiBuilder, ICDARBuilder
+
+def load_dataset_from_icdar_jar(path, split):
+    output_tmp=os.environ["DATASET_TMP"]
+    ICDARBuilder(path,output_tmp).build()
+    json_path = output_tmp
+    return VOCDataset(json_path, split)
 
 def load_dataset_from_dokki_jar(path, split):
     output_tmp=os.environ["DATASET_TMP"]

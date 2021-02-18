@@ -1,6 +1,8 @@
 import os
 import logging
 import zipfile
+import ntpath
+
 
 
 def is_dir_not_empty(path):
@@ -20,6 +22,9 @@ def extract_zip(filename: str, directory_to_extract_to : str) -> None:
         return
     with zipfile.ZipFile(filename, 'r') as zip_ref:
         zip_ref.extractall(directory_to_extract_to)
+
+def extract_filename_from_path(path):
+    return ntpath.basename(path)
 
 if __name__ == "__main__":
     logging.basicConfig(level=logging.INFO)
