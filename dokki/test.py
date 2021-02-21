@@ -9,6 +9,7 @@ logging.basicConfig(level=logging.INFO)
 if __name__ == "__main__":
     dataset = load_dataset_from_icdar_jar('C:/Users/gugaime/Documents/Datasets/icdar.task1train.zip', "TRAIN")
     dataset = VOCDataset('C:/Users/gugaime/Documents/Datasets/output', "TRAIN")
+    dataset.turn_off_augment()
     image,timage, boxes, labels, difficulties = dataset[2]
     logging.info("-Image:%s",timage.shape)
     logging.info("-Boxed:%s",boxes.shape)

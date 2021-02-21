@@ -2,7 +2,7 @@ import sys
 import time
 import torch
 from torch import nn
-from datasets import VOCDataset, load_dataset_from_pascal_voc_jar
+from datasets import VOCDataset, load_dataset_from_pascal_voc_jar, load_dataset_from_icdar_jar
 
 from model import SSD300, MultiBoxLoss, AverageMeter
 from PIL import Image, ImageDraw
@@ -16,7 +16,7 @@ class VOCBrain():
 
     PRINT_FREQ = 1
 
-    def __init__(self, dataset_jar_path, chekpoint_tar_path=None, batch_size=4, workers=2):
+    def __init__(self, dataset_jar_path, chekpoint_tar_path=None, batch_size=4, workers=2, augment=False):
         self.jar_path=dataset_jar_path
         self.chekpoint_tar_path=chekpoint_tar_path
         self.batch_size=batch_size
@@ -39,9 +39,14 @@ class VOCBrain():
         self.weight_decay = 5e-4
         self.start_epoch = 0
         self.epochs = 100
+        self.augment=augment
 
     def load(self):
-        self.dataset = load_dataset_from_pascal_voc_jar(self.jar_path, "TRAIN")
+        #self.dataset = load_dataset_from_pascal_voc_jar(self.jar_path, "TRAIN")
+        self.dataset = load_dataset_from_icdar_jar(self.jar_path, "TRAIN")
+        if self.augment==False:
+            self.dataset.turn_off_augment()
+
         self.loader = self.__loader_from_dataset(self.dataset, self.batch_size, self.workers)
         if self.chekpoint_tar_path:
             self.start_epoch, self.model, self.optimizer  = self.__load_checkpoint(self.chekpoint_tar_path)

@@ -11,15 +11,12 @@ from databuilders import VOCJsonBuilder, DokkiBuilder, ICDARBuilder
 def load_dataset_from_icdar_jar(path, split):
     output_tmp=os.environ["DATASET_TMP"]
     ICDARBuilder(path,output_tmp).build()
-    json_path = output_tmp
-    return VOCDataset(json_path, split)
+    return VOCDataset(output_tmp, split)
 
 def load_dataset_from_dokki_jar(path, split):
     output_tmp=os.environ["DATASET_TMP"]
-    #descriptor = DokkiBuilder('/tmp/notafiscalpaulista.tar.xz',"/tmp/notafiscalpaulista")
     DokkiBuilder(path,output_tmp).build()
-    json_path = output_tmp
-    return VOCDataset(json_path, split)
+    return VOCDataset(output_tmp, split)
 
 def load_dataset_from_pascal_voc_jar(path,split):
     output_tmp=os.environ["DATASET_TMP"]
@@ -34,6 +31,7 @@ class VOCDataset(Dataset):
         assert self.split in {'TRAIN', 'TEST'}
         self.data_folder = data_folder
         self.keep_difficulties = keep_difficulties
+        self.enable_augment=True
         self.tranform = VOCTransform()
 
         with open(os.path.join(data_folder, self.split + '_images.json'), 'r') as j:
@@ -44,10 +42,13 @@ class VOCDataset(Dataset):
         assert len(self.images_paths) == len(self.objects)
         logging.info("Total de %d imagens carregadas",len(self.images_paths))
 
+    def turn_off_augment(self):
+        self.enable_augment=False
+
     def __getitem__(self, i):
         image = Image.open(self.images_paths[i], mode="r").convert("RGB")
         tboxes, tlabels, tdifficulties = self.__get_boxes_labels_and_difficulties(i)
-        image, timage,tboxes, tlabels, tdifficulties = self.tranform.transform(image, tboxes, tlabels, tdifficulties)
+        image, timage,tboxes, tlabels, tdifficulties = self.tranform.transform(image, tboxes, tlabels, tdifficulties,self.enable_augment)
         return image, timage,tboxes, tlabels, tdifficulties
 
     def __get_boxes_labels_and_difficulties(self, i) ->  Tuple[torch.FloatTensor,torch.LongTensor, torch.ByteTensor]:
